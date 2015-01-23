@@ -1,74 +1,18 @@
 package main
 
 import (
+	"crypto"
 	"flag"
 	"fmt"
-	"log"
+	"github.com/nbari/backup.sh/checksum"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
-type File struct {
-	Name string `json:"name"`
-	Size int64  `json:"size"`
-}
-
-type Folder struct {
-	Name    string
-	Files   []File
-	Folders map[string]*Folder
-
-
-func newFolder(name string) *Folder {
-	return &Folder{
-		name,
-		[]File{},
-		make(map[string]*Folder)}
-}
-
-func (f *Folder) getFolder(name string) *Folder {
-	if nextF, ok := f.Folders[name]; ok {
-		return nextF
-	} else {
-		log.Fatalf("Expected nested folder %v in %v\n", name, f.Name)
-	}
-	return &Folder{} // cannot happen
-}
-
-func (f *Folder) addFolder(path []string) {
-	for i, segment := range path {
-		if i == len(path)-1 { // last segment == new folder
-			f.Folders[segment] = newFolder(segment)
-		} else {
-			f.getFolder(segment).addFolder(path[1:])
-		}
-	}
-}
-
-func (f *Folder) addFile(path []string) {
-	for i, segment := range path {
-		if i == len(path)-1 { // last segment == file
-			f.Files = append(f.Files, File{segment})
-		} else {
-			f.getFolder(segment).addFile(path[1:])
-			return
-		}
-	}
-}
-
-func (f *Folder) String() string {
-	var str string
-	for _, file := range f.Files {
-		str += f.Name + string(filepath.Separator) + file.Name + "\n"
-	}
-	for _, folder := range f.Folders {
-		str += folder.String()
-	}
-	return str
-}
-
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
 	root, err := filepath.Abs(flag.Arg(0))
@@ -77,29 +21,47 @@ func main() {
 		panic(err.Error())
 	}
 
-	rootFolder := newFolder(root)
+	directories := make(map[string]bool)
+	files := make(map[string]string)
 
-	fmt.Printf("%v", rootFolder)
-	return
-
-	walkFn := func(path string, info os.FileInfo, err error) error {
-		segments := strings.Split(path, string(filepath.Separator))
-		if info.IsDir() {
-			fmt.Printf("Dir: %s\n", path)
-			rootFolder.addFolder(segments)
-		} else {
-			fmt.Printf("File: %s, size: %d bytes\n", path, info.Size())
-			rootFolder.addFile(segments)
-		}
-		return nil
-	}
+	file_ch := make(chan string)
 
 	fmt.Printf("root: %s\n", root)
 
-	err = filepath.Walk(root, walkFn)
+	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		segments := strings.Split(path, string(filepath.Separator))
+		if info.IsDir() {
+			fmt.Printf("Dir: %s segments: %s\n", path, segments)
+			directories[path] = false
+		} else {
+			//			files[path] = path
+			go func() {
+				fmt.Printf("File: %s, size: %d bytes\n", path, info.Size())
+				file_ch <- checksum.File(path, crypto.SHA1)
+			}()
+		}
+		return nil
+	})
+
 	if err != nil {
 		panic(err.Error())
 	}
 
-	log.Printf("%v\n", rootFolder)
+	for i := range files {
+		fmt.Println(i)
+	}
+
+	for i := range directories {
+		fmt.Println(i)
+	}
+
+	fmt.Println("-------")
+	//	for i := range file_ch {
+	for {
+		select {
+		case i := <-file_ch:
+			fmt.Println(i)
+		}
+	}
+
 }
