@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/nbari/backup.sh/checksum"
@@ -10,6 +11,30 @@ import (
 	"runtime"
 	"strings"
 )
+
+func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) {
+	paths := make(chan string)
+	errc := make(chan error, 1)
+	go func() {
+		// Close the paths channel after Walk returns.
+		defer close(paths)
+		errc <- filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.Mode().IsRegular() {
+				return nil
+			}
+			select {
+			case paths <- path:
+			case <-done:
+				return errors.New("walk canceled")
+			}
+			return nil
+		})
+	}()
+	return paths, errc
+}
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
