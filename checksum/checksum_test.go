@@ -16,8 +16,8 @@ func TestMD5String(t *testing.T) {
 
 func TestSHA1tring(t *testing.T) {
 	var hash string
-	hash = String("sha1", crypto.SHA1)
-	e := "415ab40ae9b7cc4e66d6769cb2c08106e8293b48"
+	hash = String("The quick brown fox jumps over the lazy dog", crypto.SHA1)
+	e := "2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"
 	if hash != e {
 		t.Error(e, hash)
 	}
@@ -25,8 +25,8 @@ func TestSHA1tring(t *testing.T) {
 
 func TestSHA256tring(t *testing.T) {
 	var hash string
-	hash = String("sha256", crypto.SHA256)
-	e := "5d5b09f6dcb2d53a5fffc60c4ac0d55fabdf556069d6631545f42aa6e3500f2e"
+	hash = String("The quick brown fox jumps over the lazy dog", crypto.SHA256)
+	e := "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592"
 	if hash != e {
 		t.Error(e, hash)
 	}
@@ -34,8 +34,8 @@ func TestSHA256tring(t *testing.T) {
 
 func TestSHA512tring(t *testing.T) {
 	var hash string
-	hash = String("sha512", crypto.SHA512)
-	e := "1f9720f871674c18e5fecff61d92c1355cd4bfac25699fb7ddfe7717c9669b4d085193982402156122dfaa706885fd64741704649795c65b2a5bdec40347e28a"
+	hash = String("The quick brown fox jumps over the lazy dog", crypto.SHA512)
+	e := "07e547d9586f6a73f73fbac0435ed76951218fb7d0c8d788a309d785436bbb642e93a252a954f23912547d1e8a3b5ed6e1bfd7097821233fa0538f3db854fee6"
 	if hash != e {
 		t.Error(e, hash)
 	}
