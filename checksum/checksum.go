@@ -1,7 +1,9 @@
 /**
- * checksum
- *
- * suported hashes MD5, SHA1, SHA256, SHA512
+* checksum
+*
+* suported hashes MD5, SHA1, SHA256, SHA512
+* return []byte
+* encode/hex - hex.EncodeToString
  */
 
 package checksum
@@ -12,7 +14,6 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
-	"encoding/hex"
 	"hash"
 	"io"
 	"os"
@@ -37,13 +38,13 @@ func createHash(method crypto.Hash) hash.Hash {
 	return h
 }
 
-func String(s string, method crypto.Hash) string {
+func String(s string, method crypto.Hash) []byte {
 	h := createHash(method)
 	io.WriteString(h, s)
-	return hex.EncodeToString(h.Sum(nil))
+	return h.Sum(nil)
 }
 
-func File(file string, method crypto.Hash) string {
+func File(file string, method crypto.Hash) []byte {
 	fh, err := os.Open(file)
 
 	if err != nil {
@@ -59,6 +60,5 @@ func File(file string, method crypto.Hash) string {
 		panic(err.Error())
 	}
 
-	return hex.EncodeToString(h.Sum(nil))
-
+	return h.Sum(nil)
 }
