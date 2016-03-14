@@ -9,56 +9,63 @@
 package checksum
 
 import (
-	"crypto"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"hash"
 	"io"
 	"os"
 )
 
-func createHash(method crypto.Hash) hash.Hash {
+func createHash(algo string) (hash.Hash, error) {
 	var h hash.Hash
+	var err error
 
-	switch method {
-	case crypto.MD5:
+	switch algo {
+	case "MD5":
 		h = md5.New()
-	case crypto.SHA1:
+	case "SHA1":
 		h = sha1.New()
-	case crypto.SHA256:
+	case "SHA256":
 		h = sha256.New()
-	case crypto.SHA512:
+	case "SHA384":
+		h = sha512.New384()
+	case "SHA512":
 		h = sha512.New()
 	default:
-		panic("Method not supported")
+		err = errors.New("Method not supported")
 	}
 
-	return h
+	return h, err
 }
 
-func String(s string, method crypto.Hash) []byte {
-	h := createHash(method)
-	io.WriteString(h, s)
-	return h.Sum(nil)
-}
-
-func File(file string, method crypto.Hash) []byte {
-	fh, err := os.Open(file)
-
+func String(s, algo string) ([]byte, error) {
+	h, err := createHash(algo)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
+	io.WriteString(h, s)
+	return h.Sum(nil), nil
+}
 
+func File(file, algo string) ([]byte, error) {
+	fh, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
 	defer fh.Close()
 
-	h := createHash(method)
+	h, err := createHash(algo)
+	if err != nil {
+		return nil, err
+	}
 	_, err = io.Copy(h, fh)
 
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 
-	return h.Sum(nil)
+	return h.Sum(nil), nil
 }
