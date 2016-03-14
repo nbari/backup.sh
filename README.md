@@ -6,6 +6,7 @@ Features:
 * Distributed backup, ability to store files in multiple locations.
 * keep history, snapshots, versioning.
 * Share files or full backup via recipies.
+* Hybrid cryptosystem
 
 
 Available commands:
