@@ -1,13 +1,18 @@
-package main
+package backup
 
 import (
-	"fmt"
 	"github.com/nbari/backup.sh/checksum"
 	"log"
 	"time"
 )
 
-func main() {
+type Backup struct {
+	src   string
+	dst   string
+	debug bool
+}
+
+func New() {
 	start := time.Now()
 	log.Println("Starting...")
 	algo := "SHA512"
@@ -16,5 +21,5 @@ func main() {
 		log.Println(err)
 	}
 	log.Printf("%s: %x\n", algo, hash)
-	fmt.Printf("Elapsed time: %s\n", time.Since(start))
+	log.Printf("Elapsed time: %s\n", time.Since(start))
 }
