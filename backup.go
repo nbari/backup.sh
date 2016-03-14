@@ -4,13 +4,17 @@ import (
 	"fmt"
 	"github.com/nbari/backup.sh/checksum"
 	"log"
+	"time"
 )
 
 func main() {
+	start := time.Now()
 	log.Println("Starting...")
-	hash, err := checksum.File("/tmp/test.raw", "SHA512")
+	algo := "SHA512"
+	hash, err := checksum.File("/tmp/1GB.raw", algo)
 	if err != nil {
 		log.Println(err)
 	}
-	fmt.Printf("MD5 hash: %s\n", hash)
+	log.Printf("%s: %x\n", algo, hash)
+	fmt.Printf("Elapsed time: %s\n", time.Since(start))
 }
