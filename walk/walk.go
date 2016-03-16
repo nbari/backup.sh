@@ -1,14 +1,13 @@
 package main
 
 import (
-	"crypto"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
 	"github.com/nbari/backup.sh/checksum"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 )
 
@@ -37,7 +36,6 @@ func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan error) 
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
 	flag.Parse()
 
 	root, err := filepath.Abs(flag.Arg(0))
@@ -49,7 +47,7 @@ func main() {
 	directories := make(map[string]bool)
 	files := make(map[string]string)
 
-	file_ch := make(chan string)
+	file_ch := make(chan []byte)
 
 	fmt.Printf("root: %s\n", root)
 
@@ -62,7 +60,11 @@ func main() {
 			//			files[path] = path
 			go func() {
 				fmt.Printf("File: %s, size: %d bytes\n", path, info.Size())
-				file_ch <- checksum.File(path, crypto.SHA1)
+				cs, err := checksum.File(path, "SHA512")
+				if err != nil {
+					fmt.Println(err)
+				}
+				file_ch <- cs
 			}()
 		}
 		return nil
@@ -85,7 +87,7 @@ func main() {
 	for {
 		select {
 		case i := <-file_ch:
-			fmt.Println(i)
+			fmt.Println(base64.URLEncoding.EncodeToString(i))
 		}
 	}
 
