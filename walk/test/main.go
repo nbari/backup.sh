@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha512"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -9,7 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	//	"strings"
-	//	"sync"
+	"sync"
 )
 
 type result struct {
@@ -27,48 +28,7 @@ func splitPath(p string) []string {
 	return split_path_rx.FindAllString(p, -1)
 }
 
-func sumFiles(done <-chan struct{}, root string) (<-chan result, <-chan error) {
-	c := make(chan result)
-	errc := make(chan error, 1)
-	go func() { // HL
-		var wg sync.WaitGroup
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if !info.Mode().IsRegular() {
-				return nil
-			}
-			wg.Add(1)
-			go func() { // HL
-				data, err := ioutil.ReadFile(path)
-				select {
-				case c <- result{path, md5.Sum(data), err}: // HL
-				case <-done: // HL
-				}
-				wg.Done()
-			}()
-			// Abort the walk if done is closed.
-			select {
-			case <-done: // HL
-				return errors.New("walk canceled")
-			default:
-				return nil
-			}
-		})
-		// Walk has returned, so all calls to wg.Add are done.  Start a
-		// goroutine to close c once all the sends are done.
-		go func() { // HL
-			wg.Wait()
-			close(c) // HL
-		}()
-		// No select needed here, since errc is buffered.
-		errc <- err // HL
-	}()
-	return c, errc
-}
-
-func walkFiles(root string) filepath.WalkFunc {
+func walkFilesX(root string) filepath.WalkFunc {
 	var current_path string
 	return func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -86,6 +46,55 @@ func walkFiles(root string) filepath.WalkFunc {
 	}
 }
 
+func walkFiles(done <-chan struct{}, root string) (<-chan string, <-chan string, <-chan error) {
+	paths := make(chan string)
+	errc := make(chan error, 1) //buffered
+	go func() {
+		defer close(paths)
+		errc <- filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.Mode().IsRegular() {
+				files <- path[len(root):]
+			}
+
+			if info.Mode().IsDir() {
+				paths <- path[len(root):]
+			}
+			select {
+			case <-done:
+				return errors.New("walk canceled")
+			}
+			return nil
+		})
+	}()
+	return paths, errc
+}
+
+func buildTree(root string) (map[string]string, error) {
+
+	done := make(chan struct{})
+	defer close(done)
+
+	paths, files, errc := walkFiles(done, root)
+	print(errc)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	for path := range paths {
+		fmt.Printf("Dir: %v\n", path)
+	}
+
+	for file := range files {
+		fmt.Printf("File: %v\n", file)
+	}
+
+	return nil, nil
+}
+
 func main() {
 	flag.Parse()
 	root, err := filepath.Abs(flag.Arg(0))
@@ -93,14 +102,11 @@ func main() {
 		panic(err)
 	}
 
-	m, err := MD5All(root)
+	tree, err := buildTree(root)
+
 	if err != nil {
-		fmt.Println(err)
-		return
+		panic(err)
 	}
 
-	err = filepath.Walk(root, walkFiles(root))
-	if err != nil {
-		fmt.Printf("filepath.Walk() returned %v\n", err)
-	}
+	print(tree)
 }
